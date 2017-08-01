@@ -10,6 +10,7 @@
 
 4. The face recognition model will use Hinge Loss, Softmax loss and Center Loss to train.
 
+5. for small obj, the multi feature based region proposal model can easily detector, but because of the receptive field, it become low resolution, so for small object classification, we need add a network can have low resolution input to high resolution output. This network will also add soon (using perceptual loss or GAN based network structure).
 
 Author:Walter
 
