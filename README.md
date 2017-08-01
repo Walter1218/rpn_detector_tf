@@ -10,6 +10,7 @@
 
 4. The face recognition model will use Hinge Loss, Softmax loss and Center Loss to train.
 
+
 Author:Walter
 
 Email:walter.1218@hotmail.com
