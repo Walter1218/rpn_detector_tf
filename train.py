@@ -68,7 +68,7 @@ def train():
                          model.bbox_in_weight : np.expand_dims(bbox_inside_weights, axis = 0),
                          model.bbox_out_weight : np.expand_dims(bbox_outside_weights, axis = 0),
             }
-            losses = sess.run([model._losses], feed_dict = feed_dict)
+            losses = sess.run([model._losses, model.train_op], feed_dict = feed_dict)
             print('the training step is {0}, and losses is {1}'.format(step, losses))
 
             if step % FLAGS.checkpoint_step == 0 or (step + 1) == FLAGS.max_steps:

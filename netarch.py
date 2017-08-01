@@ -107,13 +107,16 @@ class ResNet50(graphical_model):
         #rpn_bbox_pred = slim.conv2d(rpn, mc.ANCHOR_PER_GRID * 4, [1, 1], trainable=True ,weights_initializer=initializer_bbox,
         #                            padding='VALID', activation_fn=None, scope='rpn_bbox_pred')
         rpn = self.conv_layer('rpn', dropout4, filters=512, size=3, stride=1, padding='SAME', xavier=False, relu=False, mean = 0.0, stddev=0.001)
-        rpn_cls_score = self.conv_layer('rpn_cls_score', rpn, filters = mc.ANCHOR_PER_GRID * 2, size = 1, stride = 1, padding = 'VALID', xavier = False, relu = False, mean = 0.0, stddev = 0.0001)
-        rpn_bbox_pred = self.conv_layer('rpn_bbox_pred', rpn, filters = mc.ANCHOR_PER_GRID * 4, size = 1, stride = 1, padding = 'VALID', xavier = False, relu = False, mean = 0.0, stddev = 0.0001)
+        rpn_cls_score = self.conv_layer('rpn_cls_score', rpn, filters = mc.ANCHOR_PER_GRID * 2, size = 1, stride = 1, padding = 'VALID', xavier = False, relu = False, mean = 0.0, stddev = 0.001)
+        rpn_bbox_pred = self.conv_layer('rpn_bbox_pred', rpn, filters = mc.ANCHOR_PER_GRID * 4, size = 1, stride = 1, padding = 'VALID', xavier = False, relu = False, mean = 0.0, stddev = 0.001)
         rpn_cls_score_reshape = self.spatial_reshape_layer(rpn_cls_score, 2, name = 'rpn_cls_score_reshape')
         rpn_cls_prob = self.spatial_softmax(rpn_cls_score_reshape, name='rpn_cls_prob')
         rpn_cls_prob_reshape = self.spatial_reshape_layer(rpn_cls_prob , mc.ANCHOR_PER_GRID * 2, name = 'rpn_cls_prob_reshape')
         self._predictions["rpn_cls_score_reshape"] = rpn_cls_score_reshape
         self._predictions["rpn_bbox_pred"] = rpn_bbox_pred
+
+        self.det_probs = rpn_cls_prob_reshape
+        self.det_boxes = rpn_bbox_pred
 
 
     def residual_branch(self, inputs, layer_name, in_filters, out_filters, down_sample=False, freeze=False):

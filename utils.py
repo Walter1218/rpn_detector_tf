@@ -120,10 +120,65 @@ def batch_iou(boxes, box):
     union = boxes[:,2]*boxes[:,3] + box[2]*box[3] - inter
     return inter/union
 
+def non_max_suppression_fast(boxes, probs, max_boxes, overlap_thresh=0.9):
+    if len(boxes) == 0:
+        return []
+    max_boxes = max_boxes
+    # grab the coordinates of the bounding boxes
+    x1 = boxes[:, 0]
+    y1 = boxes[:, 1]
+    x2 = boxes[:, 2]
+    y2 = boxes[:, 3]
+    #print('coordinates', x1, y1, x2, y2)
+    #print('coordinates shape', x1.shape, y1.shape, x2.shape, y2.shape)
+    #np.testing.assert_array_less(x1, x2)
+    #np.testing.assert_array_less(y1, y2)
+
+    #boxes = boxes.astype('float')
+    pick = []
+    #print('probs',probs)
+    #print('shape of probs', probs.shape)
+    probs = probs.reshape(-1)
+    #print(probs.shape)
+    idx = np.argsort(probs[:])
+    areas = (x2 - x1 + 1) * (y2 - y1 + 1)
+    #print('sorted index',idx)
+    while(len(idx)> 0):
+        last = len(idx) - 1
+        i = idx[last]
+        pick.append(i)
+        # find the intersection
+        xx1_int = np.maximum(x1[i], x1[idx[:last]])
+        yy1_int = np.maximum(y1[i], y1[idx[:last]])
+        xx2_int = np.minimum(x2[i], x2[idx[:last]])
+        yy2_int = np.minimum(y2[i], y2[idx[:last]])
+
+        # find the union
+        xx1_un = np.minimum(x1[i], x1[idx[:last]])
+        yy1_un = np.minimum(y1[i], y1[idx[:last]])
+        xx2_un = np.maximum(x2[i], x2[idx[:last]])
+        yy2_un = np.maximum(y2[i], y2[idx[:last]])
+
+        # compute the width and height of the bounding box
+        w = np.maximum(0.0, xx2_int - xx1_int + 1)
+        h = np.maximum(0.0, yy2_int - yy1_int + 1)
+        inter = w * h
+        overlap = inter / (areas[i] + areas[idx[:last]] - inter)
+
+        # delete all indexes from the index list that have
+        idx = np.delete(idx, np.concatenate(([last],np.where(overlap > overlap_thresh)[0])))
+        if len(pick) >= max_boxes:
+            break
+    boxes = boxes[pick].astype("int")
+    probs = probs[pick]
+    #print('bbox', boxes)
+    #print('probs',probs)
+    return boxes, probs
+    
 def nms(boxes, probs, threshold):
     order = probs.argsort()[::-1]
     keep = [True]*len(order)
-
+    #print(order.shape)
     for i in range(len(order)-1):
         ovps = batch_iou(boxes[order[i+1:]], boxes[order[i]])
         for j, ov in enumerate(ovps):

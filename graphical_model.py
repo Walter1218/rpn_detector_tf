@@ -33,25 +33,7 @@ class graphical_model:
         raise NotImplementedError
 
     def logits_node(self):
-        mc = self.mc
-        with tf.variable_scope('predict_output') as scope:
-            region_proposal_scores = self.rpn_probs
-            region_proposal_delta = self.rpn_delta
-            #rpn_cls_prob_reshape = self.reshape_layer(region_proposal_scores,2,'region_proposal_scores')
-            rpn_cls_prob = tf.reshape(region_proposal_scores, [-1])
-            rpn_cls_prob = tf.nn.softmax(rpn_cls_prob)#self._softmax_layer(region_proposal_scores, "rpn_cls_prob")
-            #print(rpn_cls_prob.shape)
-            #rpn_cls_prob = self.reshape_layer(rpn_cls_prob, mc.ANCHOR_PER_GRID * 2, "rpn_cls_prob")
-            self.rpn_cls_prob = rpn_cls_prob#rpn_cls_prob
-            self.rpn_delta = region_proposal_delta
-
-            #self._predictions["rpn_cls_score"] = region_proposal_scores
-            self._predictions["rpn_cls_prob"] = self.rpn_cls_prob
-            self._predictions["rpn_bbox_pred"] = self.rpn_delta
-
-
-            self.det_probs = self.rpn_cls_prob#tf.reduce_max(rpn_cls_prob, 2, name='score')
-            self.det_boxes = region_proposal_delta
+        pass
 
     def _smooth_l1_loss(self, bbox_pred, bbox_targets, bbox_inside_weights, bbox_outside_weights, sigma=1.0, dim=[1]):
         sigma_2 = sigma ** 2
@@ -122,16 +104,16 @@ class graphical_model:
                                         mc.DECAY_STEPS,
                                         mc.LR_DECAY_FACTOR,
                                         staircase=True)
-        opt = tf.train.MomentumOptimizer(learning_rate=lr, momentum=mc.MOMENTUM)
-        grads_vars = opt.compute_gradients(self._losses['total_loss'], tf.trainable_variables())
+        self.train_op = tf.train.MomentumOptimizer(learning_rate=lr, momentum=mc.MOMENTUM).minimize(self._losses['total_loss'], global_step = self.global_step)
+        #grads_vars = opt.compute_gradients(self._losses['total_loss'], tf.trainable_variables())
 
-        with tf.variable_scope('clip_gradient') as scope:
-            for i, (grad, var) in enumerate(grads_vars):
-                grads_vars[i] = (tf.clip_by_norm(grad, mc.MAX_GRAD_NORM), var)
+        #with tf.variable_scope('clip_gradient') as scope:
+        #    for i, (grad, var) in enumerate(grads_vars):
+        #        grads_vars[i] = (tf.clip_by_norm(grad, mc.MAX_GRAD_NORM), var)
 
-        apply_gradient_op = opt.apply_gradients(grads_vars, global_step=self.global_step)
-        with tf.control_dependencies([apply_gradient_op]):
-            self.train_op = tf.no_op(name='train')
+        #apply_gradient_op = opt.apply_gradients(grads_vars, global_step=self.global_step)
+        #with tf.control_dependencies([apply_gradient_op]):
+        #    self.train_op = tf.no_op(name='train')
         #lr = tf.Variable(mc.LEARNING_RATE, trainable=False)
         #momentum = mc.MOMENTUM
         #self.optimizer = tf.train.MomentumOptimizer(lr, momentum)
