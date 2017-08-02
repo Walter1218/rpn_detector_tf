@@ -13,7 +13,7 @@ class Box():
         self.w = w
         self.h = h
 
-def get_img_by_name(df,ind,size=(960,640)):
+def get_img_by_name(df,ind,size=(960,640), dataset = 'PASCAL_VOC'):
     file_name = df['FileName'][ind]
     #print(file_name)
     img = cv2.imread(file_name)
@@ -21,8 +21,15 @@ def get_img_by_name(df,ind,size=(960,640)):
 
     img = cv2.cvtColor(img,cv2.COLOR_BGR2RGB)
     img = cv2.resize(img,size)
-    name_str = file_name.split('/')
-    name_str = name_str[-1]
+    if(dataset == 'PASCAL_VOC'):
+        name_str = file_name.split('/')
+        name_str = name_str[-1]
+    else:
+        name_str = file_name.split('/')
+        #print(name_str)
+        name = name_str[2] + '/' + name_str[3] + '/' + name_str[4] + '/' + name_str[5] + '/'
+        #print(name)
+        name_str = name + name_str[-1]
     #print(name_str)
     #print(file_name)
     bb_boxes = df[df['Frame'] == name_str].reset_index()

@@ -45,13 +45,16 @@ def train():
         tf.train.start_queue_runners(sess=sess)
 
         summary_writer = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
-        data = pd.read_csv('voc_xywh.csv')
+        #data = pd.read_csv('voc_xywh.csv')
+        data = pd.read_csv('FDDB2XYWH.csv')
+
         data = data.drop('Unnamed: 0', 1)
+        #TODO, add trainval split code here;
         img_channel_mean = [103.939, 116.779, 123.68]
         for step in xrange(FLAGS.max_steps):
             start_time = time.time()
             i_line = np.random.randint(len(data))
-            name_str, img, bb_boxes = batch_generate.get_img_by_name(data, i_line, size = (960, 640))
+            name_str, img, bb_boxes = batch_generate.get_img_by_name(data, i_line, size = (960, 640),dataset = 'FDDB')
             #Normalize
             img = img.astype(np.float32)
             img[:, :, 0] -= img_channel_mean[0]
