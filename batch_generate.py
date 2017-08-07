@@ -336,7 +336,7 @@ def bbox2cxcy(bb_boxes):
         gta[i,1] = bb_boxes[i,1] + (bb_boxes[i,3] - bb_boxes[i,1]) / 2
         gta[i,2] = (bb_boxes[i,2] - bb_boxes[i,0])
         gta[i,3] = (bb_boxes[i,3] - bb_boxes[i,1])
-        #gta[i,4] = bb_boxes[i,4]
+        gta[i,4] = bb_boxes[i,4]
     return gta
 
 def bbox_transform(bb_boxes, is_df = True):
