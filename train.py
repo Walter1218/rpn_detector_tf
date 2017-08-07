@@ -45,8 +45,8 @@ def train():
         tf.train.start_queue_runners(sess=sess)
 
         summary_writer = tf.summary.FileWriter(FLAGS.train_dir, sess.graph)
-        #data = pd.read_csv('voc_xywh.csv')
-        data = pd.read_csv('FDDB2XYWH.csv')
+        data = pd.read_csv('voc_xywh.csv')
+        #data = pd.read_csv('FDDB2XYWH.csv')
 
         data = data.drop('Unnamed: 0', 1)
         #TODO, add trainval split code here;
@@ -54,7 +54,8 @@ def train():
         for step in xrange(FLAGS.max_steps):
             start_time = time.time()
             i_line = np.random.randint(len(data))
-            name_str, img, bb_boxes = batch_generate.get_img_by_name(data, i_line, size = (960, 640),dataset = 'FDDB')
+            name_str, img, bb_boxes = batch_generate.get_img_by_name(data, i_line, size = (960, 640), dataset = 'PASCAL_VOC')#,dataset = 'FDDB')
+            #print(bb_boxes)
             #Normalize
             img = img.astype(np.float32)
             img[:, :, 0] -= img_channel_mean[0]
@@ -62,7 +63,10 @@ def train():
             img[:, :, 2] -= img_channel_mean[2]
             img_per_batch = np.expand_dims(img, axis = 0)
             anchor_box = np.expand_dims(mc.ANCHOR_BOX, axis = 0)
-            labels, bbox_targets, bbox_inside_weights, bbox_outside_weights = batch_generate.target_label_generate(bb_boxes, anchor_box, mc)
+            #if(mc.cls):
+            #    labels, bbox_targets, bbox_inside_weights, bbox_outside_weights, cls_map = batch_generate.target_label_generate(bb_boxes, anchor_box, mc, DEBUG = False)
+            #else:
+            labels, bbox_targets, bbox_inside_weights, bbox_outside_weights , groundtruth = batch_generate.target_label_generate(bb_boxes, anchor_box, mc, DEBUG = False)
             feed_dict = {
                          model.image_input : img_per_batch,
                          model.keep_prob : mc.KEEP_PROB,
@@ -70,6 +74,8 @@ def train():
                          model.target_delta : np.expand_dims(bbox_targets, axis = 0),
                          model.bbox_in_weight : np.expand_dims(bbox_inside_weights, axis = 0),
                          model.bbox_out_weight : np.expand_dims(bbox_outside_weights, axis = 0),
+                         model.gt_boxes : groundtruth,
+                         #model.cls_map: np.expand_dims(cls_map, axis = 0),# for end2end classification
             }
             losses = sess.run([model._losses, model.train_op], feed_dict = feed_dict)
             print('the training step is {0}, and losses is {1}'.format(step, losses))

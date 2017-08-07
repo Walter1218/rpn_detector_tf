@@ -136,6 +136,10 @@ def target_label_generate(gta, anchor_box ,mc ,is_multi_layer = False, DEBUG = F
         print('After subsampling, the number of postive samples is ', num_pos_samples)
         print('After subsampling, the number os negative samples is ', num_neg_samples)
 
+    #target cls label
+    #if(mc.cls = True):
+
+
     #bbox delta label
     target_delta, bbox_in_w, bbox_out_w = target_bbox(out_inside, valid_anchors, gta[argmax_overlaps,:], target_labels, mc)
     if(DEBUG):
@@ -189,9 +193,56 @@ def target_label_generate(gta, anchor_box ,mc ,is_multi_layer = False, DEBUG = F
     #assert bbox_outside_weights.shape[3] == width
 
     rpn_bbox_outside_weights = bbox_outside_weights
+    if(DEBUG):
+        print('overlaps_table', overlaps_table.shape)
+        print('overlaps_table displayed', overlaps_table)
+        num_gta = overlaps_table.shape[1]
+        print('number of gta',num_gta)
+    #if(mc.cls):
+    #    num_gta = overlaps_table.shape[1]
+    #    cls_map = cls_mapping(valid_anchors, overlaps_table, target_labels, gta, num_gta, mc)
+    #    cls_map = unmap2original(cls_map, total_anchors, inds_inside, fill=-1)
+    #    cls_map = cls_map.reshape((mc.H, mc.W, mc.ANCHOR_PER_GRID))
+        #print(cls_map.shape)
+    #    return rpn_labels, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights, cls_map
+    #else:
+    return rpn_labels, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights, gta
 
-    return rpn_labels, rpn_bbox_targets, rpn_bbox_inside_weights, rpn_bbox_outside_weights
+def cls_mapping(valid_anchors, overlaps_table, target_labels, gta, num_gta, mc):
+    dim = overlaps_table.shape[0]
+    target_cls_label = np.zeros((dim, ), dtype = np.float32)
+    #for i in range(num_gta):
+    #    print('the orientations of index i is',gta[i,4])
+        #print('this gta, the overlaps looks as',overlaps_table[:,i])
+    postive_index = np.where(target_labels == 1 )[0]
+    anchor_box = valid_anchors
+    #print('the coordinate of postive samples anchor box is',anchor_box[postive_index])
+    ref_anchors = anchor_box[postive_index]
+    cls_overlaps_table = np.zeros((len(postive_index), num_gta))
+    anchors = coord2box(ref_anchors)
+    groundtruth = coord2box(gta)
+    for i in range(len(postive_index)):
+        for j in range(num_gta):
+            cls_overlaps_table[i,j] = utils.box_iou(anchors[i], groundtruth[j])
+    #print(cls_overlaps_table)
+    #print(cls_overlaps_table.argmax(axis = 1))
+    cls_idx = cls_overlaps_table.argmax(axis = 1)
+    #print(gta[cls_idx,4],postive_index[cls_idx])
+    for i in range(num_gta):
+        pos_idx_gta = np.where(cls_idx == i)[0]
+        #print('the groundtruth index {0} , postive index is {1}'.format(i, postive_index[pos_idx_gta]))
+        if(int(gta[i,4]) == 1):
+            target_cls_label[postive_index[pos_idx_gta]] = 1
+        else:
+            target_cls_label[postive_index[pos_idx_gta]] = 0
+        #print(np.where(target_cls_label[:,int(gta[i,4] + 1)] == 1)[0])
+    #for i in range(len(cls_idx)):
 
+    #print('the psotive samples', np.where(target_labels > 0)[0])
+    #for i in range(len(gta)):
+        #print(gta[i,4])
+    #    target_cls_label[]
+    return target_cls_label
 
 def unmap2original(data, count, inds, fill=0):
     if len(data.shape) == 1:
@@ -279,19 +330,21 @@ def coord2box(bbox):
     return boxes
 
 def bbox2cxcy(bb_boxes):
-    gta = np.zeros((len(bb_boxes), 4))
+    gta = np.zeros((len(bb_boxes), 5))
     for i in range(len(bb_boxes)):
         gta[i,0] = bb_boxes[i,0] + (bb_boxes[i,2] - bb_boxes[i,0]) / 2
         gta[i,1] = bb_boxes[i,1] + (bb_boxes[i,3] - bb_boxes[i,1]) / 2
         gta[i,2] = (bb_boxes[i,2] - bb_boxes[i,0])
         gta[i,3] = (bb_boxes[i,3] - bb_boxes[i,1])
+        #gta[i,4] = bb_boxes[i,4]
     return gta
 
 def bbox_transform(bb_boxes, is_df = True):
     """
     convert the x_center, y_center, w, h to xmin, ymin, xmax, ymax type
     """
-    gta = np.zeros((len(bb_boxes), 4))
+    gta = np.zeros((len(bb_boxes), 5))
+    #print(gta.shape)
     if(is_df):
         for i in range(len(bb_boxes)):
             """
@@ -305,6 +358,7 @@ def bbox_transform(bb_boxes, is_df = True):
             gta[i,1] = bb_boxes.iloc[i]['y_center'] - (bb_boxes.iloc[i]['h'] / 2.)
             gta[i,2] = bb_boxes.iloc[i]['x_center'] + (bb_boxes.iloc[i]['w'] / 2.)
             gta[i,3] = bb_boxes.iloc[i]['y_center'] + (bb_boxes.iloc[i]['h'] / 2.)
+            gta[i,4] = bb_boxes.iloc[i]['label']
     else:
         for i in range(len(bb_boxes)):
             cx = bb_boxes[i,0]
@@ -315,5 +369,6 @@ def bbox_transform(bb_boxes, is_df = True):
             gta[i,1] = cy - (h / 2.)
             gta[i,2] = cx + (w / 2.)
             gta[i,3] = cy + (h / 2.)
+            #gta[i,4] = bb_boxes[i,4]
 
     return gta#data

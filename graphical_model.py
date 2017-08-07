@@ -20,7 +20,8 @@ class graphical_model:
         self.target_delta = tf.placeholder(tf.float32, [mc.BATCH_SIZE, mc.H , mc.W , mc.ANCHOR_PER_GRID * 4], name = 'target_delta')
         self.bbox_in_weight = tf.placeholder(tf.float32, [mc.BATCH_SIZE, mc.H , mc.W , mc.ANCHOR_PER_GRID * 4], name = 'bbox_in_weight')
         self.bbox_out_weight = tf.placeholder(tf.float32, [mc.BATCH_SIZE, mc.H , mc.W , mc.ANCHOR_PER_GRID * 4], name = 'bbox_out_weight')
-
+        self.gt_boxes = tf.placeholder(tf.float32, [None, 5], name = 'gt_boxes')#because now only support batch=1 as input
+        #self.cls_map = tf.placeholder(tf.float32, [mc.BATCH_SIZE, mc.H , mc.W , mc.ANCHOR_PER_GRID], name = 'cls_map')
         self._predictions = {}
         self._anchor_targets = {}
         self._losses = {}
@@ -51,6 +52,7 @@ class graphical_model:
         with tf.variable_scope('cnn-loss') as scope:
             #target label Y
             self._anchor_targets["rpn_labels"] = tf.to_int32(self.target_label)
+            #self._anchor_targets['cls_label'] = tf.to_int32(self.cls_map)
             #self._anchor_targets["rpn_labels"] = tf.convert_to_tensor(tf.cast(self._anchor_targets["rpn_labels"],tf.int32), name = 'rpn_labels')
 
             #print(self._anchor_targets["rpn_labels"])
@@ -67,6 +69,8 @@ class graphical_model:
 
             rpn_cls_score = tf.reshape(tf.gather(rpn_cls_score, rpn_keep), [-1, 2]) # shape (N, 2)
             rpn_label = tf.reshape(tf.gather(rpn_label, rpn_keep), [-1])
+            #print(rpn_cls_score.shape)
+            #print(rpn_label.shape)
             rpn_cross_entropy_n = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=rpn_cls_score, labels=rpn_label)
             rpn_cross_entropy = tf.reduce_mean(rpn_cross_entropy_n)
             #rpn_select = tf.where(tf.not_equal(rpn_label, -1))
@@ -89,10 +93,22 @@ class graphical_model:
             rpn_loss_box = self._smooth_l1_loss(rpn_bbox_pred, rpn_bbox_targets, rpn_bbox_inside_weights,
                                                 rpn_bbox_outside_weights, sigma=sigma_rpn, dim=[1, 2, 3])
 
+            #cls regression
+            #cls_score = tf.reshape(self._predictions["cls_pred"], [-1, 2])#tf.reshape(self._predictions['rpn_cls_prob'], [-1,2])
+            #print(cls_score.shape)
+            #cls_label = tf.reshape(self._anchor_targets['cls_label'], [-1])
+            #print(cls_label.shape)
+            #cls_keep = tf.where(tf.not_equal(cls_label, -1))
+            #cls_score = tf.reshape(tf.gather(cls_score, cls_keep), [-1, 2]) # shape (N, 2)
+            #cls_label = tf.reshape(tf.gather(cls_label, cls_keep), [-1])
+
+            #cls_cross_entropy_n = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=cls_score, labels=cls_label)
+            #cls_cross_entropy = tf.reduce_mean(cls_cross_entropy_n)
+
             self._losses['rpn_cross_entropy'] = rpn_cross_entropy
             self._losses['rpn_loss_box'] = rpn_loss_box
-
-            loss = rpn_cross_entropy + rpn_loss_box
+            #self._losses['cls_cross_entropy'] = cls_cross_entropy
+            loss = rpn_cross_entropy + rpn_loss_box #+ cls_cross_entropy
             self._losses['total_loss'] = loss
         return loss
 
@@ -105,23 +121,6 @@ class graphical_model:
                                         mc.LR_DECAY_FACTOR,
                                         staircase=True)
         self.train_op = tf.train.MomentumOptimizer(learning_rate=lr, momentum=mc.MOMENTUM).minimize(self._losses['total_loss'], global_step = self.global_step)
-        #grads_vars = opt.compute_gradients(self._losses['total_loss'], tf.trainable_variables())
-
-        #with tf.variable_scope('clip_gradient') as scope:
-        #    for i, (grad, var) in enumerate(grads_vars):
-        #        grads_vars[i] = (tf.clip_by_norm(grad, mc.MAX_GRAD_NORM), var)
-
-        #apply_gradient_op = opt.apply_gradients(grads_vars, global_step=self.global_step)
-        #with tf.control_dependencies([apply_gradient_op]):
-        #    self.train_op = tf.no_op(name='train')
-        #lr = tf.Variable(mc.LEARNING_RATE, trainable=False)
-        #momentum = mc.MOMENTUM
-        #self.optimizer = tf.train.MomentumOptimizer(lr, momentum)
-
-        # Compute the gradients wrt the loss
-        #loss = self._losses['total_loss']
-        #gvs = self.optimizer.compute_gradients(loss)
-        #self.train_op = self.optimizer.apply_gradients(gvs)
 
     def spatial_softmax(self, bottom, name):
         input_shape = tf.shape(bottom)
@@ -176,31 +175,3 @@ class graphical_model:
             # then swap the channel back
             to_tf = tf.transpose(reshaped, [0, 2, 3, 1])
         return to_tf
-
-    def filter_prediction(self, boxes, probs):
-        mc = self.mc
-
-        if mc.TOP_N_DETECTION < len(probs) and mc.TOP_N_DETECTION > 0:
-            order = probs.argsort()[:-mc.TOP_N_DETECTION-1:-1]
-            probs = probs[order]
-            boxes = boxes[order]
-            #cls_idx = cls_idx[order]
-        else:
-            filtered_idx = np.nonzero(probs>mc.PROB_THRESH)[0]
-            probs = probs[filtered_idx]
-            boxes = boxes[filtered_idx]
-            #cls_idx = cls_idx[filtered_idx]
-        return probs, boxes
-        #final_boxes = []
-        #final_probs = []
-        #final_cls_idx = []
-
-        #for c in range(mc.CLASSES):
-        #idx_per_class = [i for i in range(len(probs)) if cls_idx[i] == 1]
-        #keep = utils.nms(boxes, probs, mc.NMS_THRESH)
-        #for i in range(len(keep)):
-        #    if keep[i]:
-        #        final_boxes.append(boxes[i])
-        #        final_probs.append(probs[i])
-                #final_cls_idx.append(c)
-        #return final_boxes, final_probs#, final_cls_idx

@@ -12,6 +12,7 @@ import numpy as np
 import tensorflow as tf
 from graphical_model import graphical_model
 import tensorflow.contrib.slim as slim
+from roi_proposal import roi_proposal
 
 def _variable_with_weight_decay(name, shape, wd, initializer, trainable=True):
     var = _variable_on_device(name, shape, initializer, trainable)
@@ -109,15 +110,53 @@ class ResNet50(graphical_model):
         rpn = self.conv_layer('rpn', dropout4, filters=512, size=3, stride=1, padding='SAME', xavier=False, relu=False, mean = 0.0, stddev=0.001)
         rpn_cls_score = self.conv_layer('rpn_cls_score', rpn, filters = mc.ANCHOR_PER_GRID * 2, size = 1, stride = 1, padding = 'VALID', xavier = False, relu = False, mean = 0.0, stddev = 0.001)
         rpn_bbox_pred = self.conv_layer('rpn_bbox_pred', rpn, filters = mc.ANCHOR_PER_GRID * 4, size = 1, stride = 1, padding = 'VALID', xavier = False, relu = False, mean = 0.0, stddev = 0.001)
+        #cls_pred = self.conv_layer('cls_pred', rpn, filters = 2* mc.ANCHOR_PER_GRID , size = 1, stride = 1, padding = 'VALID', xavier = False, relu = False, mean = 0.0, stddev = 0.001)
         rpn_cls_score_reshape = self.spatial_reshape_layer(rpn_cls_score, 2, name = 'rpn_cls_score_reshape')
         rpn_cls_prob = self.spatial_softmax(rpn_cls_score_reshape, name='rpn_cls_prob')
         rpn_cls_prob_reshape = self.spatial_reshape_layer(rpn_cls_prob , mc.ANCHOR_PER_GRID * 2, name = 'rpn_cls_prob_reshape')
+
+        #cls_score_reshape = self.spatial_reshape_layer(cls_pred, 2, name = 'cls_score_reshape')
+        #cls_prob = self.spatial_softmax(cls_score_reshape, name='cls_prob')
+        #cls_prob_reshape = self.spatial_reshape_layer(cls_prob , mc.ANCHOR_PER_GRID * 2 , name = 'cls_prob_reshape')
+
+        #proposal_nms here
+        rois, rpn_scores = self.proposal_nms_layer(mc, rpn_cls_score_reshape, rpn_bbox_pred)
+        #select postive/negative samples from proposaled nms bboxes
+        
+
         self._predictions["rpn_cls_score_reshape"] = rpn_cls_score_reshape
         self._predictions["rpn_bbox_pred"] = rpn_bbox_pred
+        #################################################
+        ########DEBUG PRINT##############################
+        #self._predictions["rpn_rois"] = rois
+        #self._predictions["rpn_scores"] = rpn_scores
+        #self._predictions["cls_pred"] = cls_score_reshape
 
         self.det_probs = rpn_cls_prob_reshape
         self.det_boxes = rpn_bbox_pred
+        #self.det_cls = cls_prob_reshape
 
+    def proposaled_target_layer(self, mc, rois, rpn_scores, gt_boxes, name = 'proposaled_target_layer'):
+        with tf.variable_scope(name) as scope:
+            pass
+
+    def proposal_nms_layer(self, mc, rpn_cls_prob_reshape, rpn_bbox_pred, name = 'proposal_nms_layer'):
+        with tf.variable_scope(name) as scope:
+            print('proposal_nms_layer process')
+            self.H = mc.H
+            self.W = mc.W
+            self.ANCHOR_PER_GRID = mc.ANCHOR_PER_GRID
+            self.ANCHOR_BOX = mc.ANCHORS
+            self.TOP_N_DETECTION = mc.TOP_N_DETECTION
+            self.IM_H = mc.IMAGE_HEIGHT
+            self.IM_W = mc.IMAGE_WIDTH
+            self.NMS_THRESH = mc.NMS_THRESH
+            rois, rpn_scores = tf.py_func(roi_proposal,[rpn_cls_prob_reshape, rpn_bbox_pred, self.H, self.W, self.ANCHOR_PER_GRID,
+                                          self.ANCHOR_BOX, self.TOP_N_DETECTION, self.NMS_THRESH, self.IM_H, self.IM_W],
+                                          [tf.float32, tf.float32])
+            rois.set_shape([mc.TOP_N_DETECTION, 5])
+            rpn_scores.set_shape([mc.TOP_N_DETECTION, 1])
+        return rois, rpn_scores
 
     def residual_branch(self, inputs, layer_name, in_filters, out_filters, down_sample=False, freeze=False):
         with tf.variable_scope('res'+layer_name+'_branch2'):

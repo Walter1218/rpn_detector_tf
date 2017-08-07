@@ -14,7 +14,7 @@
 
 6. Add mAP evalution code
 
-7. add fast part(proposal nms & target proposaled label)
+7. add fast part(proposal nms & target proposaled label) #TODO
 
 The results of using RPN based network as face detector please see in ./example/
 

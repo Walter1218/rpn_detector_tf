@@ -173,8 +173,8 @@ def non_max_suppression_fast(boxes, probs, max_boxes, overlap_thresh=0.9):
     probs = probs[pick]
     #print('bbox', boxes)
     #print('probs',probs)
-    return boxes, probs
-    
+    return boxes, probs, pick
+
 def nms(boxes, probs, threshold):
     order = probs.argsort()[::-1]
     keep = [True]*len(order)

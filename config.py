@@ -13,6 +13,8 @@ def base_model_config(dataset = 'PASCAL_VOC'):
                            'car', 'cat', 'chair', 'cow', 'diningtable', 'dog',
                            'horse', 'motorbike', 'person', 'pottedplant', 'sheep',
                            'sofa', 'train', 'tvmonitor')
+    else:
+        cfg.CLASS_NAMES = ('Left','Right')
     cfg.CLASSES = len(cfg.CLASS_NAMES)
 
     # batch size
@@ -60,11 +62,11 @@ def base_model_config(dataset = 'PASCAL_VOC'):
     cfg.DEBUG_MODE = True
 
     cfg.TOP_N_DETECTION = 300
-    cfg.NMS_THRESH = 0.1
+    cfg.NMS_THRESH = 0.3
     return cfg
 
 def model_parameters():
-    mc                       = base_model_config('PASCAL_VOC')
+    mc                       = base_model_config('FDDB')
     mc.IMAGE_WIDTH           = 960
     mc.IMAGE_HEIGHT          = 640
     mc.BATCH_SIZE            = 1
@@ -74,6 +76,7 @@ def model_parameters():
     mc.H = 40
     mc.W = 60
     mc.PROB_THRESH           = 0.005
+    mc.cls = True
     return mc
 
 def set_anchors(mc):
