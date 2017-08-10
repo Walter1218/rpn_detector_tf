@@ -32,8 +32,8 @@ def bbox_transform(df, DEBUG = False):
     ymax = df['ymax']
     #print(xmin)
     #convert to x center, y center, w, h
-    df['x_center'] = (xmax - xmin) / 2
-    df['y_center'] = (ymax - ymin) / 2
+    df['x_center'] = xmin + (xmax - xmin) / 2
+    df['y_center'] = ymin + (ymax - ymin) / 2
     df['w'] = xmax - xmin
     df['h'] = ymax - ymin
     if(DEBUG):
